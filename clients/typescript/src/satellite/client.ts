@@ -18,6 +18,10 @@ import {
   SatRelationColumn,
   SatAuthHeader,
   SatAuthHeaderPair,
+  SatShapeDef,
+  SatShapeDef_Select,
+  SatShapeReq,
+  SatSubsReq,
 } from '../_generated/protocol/satellite'
 import {
   getObjFromString,
@@ -48,6 +52,8 @@ import {
   SchemaChange,
   OutgoingReplication,
   Transaction,
+  Shape,
+  ShapeSubsResp
 } from '../util/types'
 import {
   base64,
@@ -294,6 +300,25 @@ export class SatelliteClient extends EventEmitter implements Client {
       headers: headers,
     })
     return this.rpc<AuthResponse>(request)
+  }
+
+  subscribeToShape(shape: Shape): Promise<ShapeSubsResp> {
+    const selectsMsg = shape.tables.map(tbl => {
+      return SatShapeDef_Select.fromPartial({
+        tablename: tbl
+      })
+    })
+    const shapeDefMsg = SatShapeDef.fromPartial({
+      selects: selectsMsg
+    })
+    const shapeReqMsg = SatShapeReq.fromPartial({
+      requestId: "???",
+      shapeDefinition: shapeDefMsg
+    })
+    const request = SatSubsReq.fromPartial({
+      shapeRequest: [ shapeReqMsg ]
+    })
+    return this.rpc<ShapeSubsResp>(request)
   }
 
   subscribeToTransactions(

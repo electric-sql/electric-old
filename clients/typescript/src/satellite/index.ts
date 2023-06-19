@@ -13,6 +13,8 @@ import {
   DataTransaction,
   Transaction,
   Relation,
+  Shape,
+  ShapeSubsResp
 } from '../util/types'
 
 export { SatelliteProcess } from './process'
@@ -47,6 +49,7 @@ export interface Satellite {
   adapter: DatabaseAdapter
   migrator: Migrator
   notifier: Notifier
+  client: Client
 
   start(authState?: AuthState): Promise<ConnectionWrapper>
   stop(): Promise<void>
@@ -58,6 +61,7 @@ export interface Client {
   ): Promise<void | SatelliteError>
   close(): Promise<void | SatelliteError>
   authenticate(authState: AuthState): Promise<AuthResponse | SatelliteError>
+  subscribeToShape(shape: Shape): Promise<ShapeSubsResp | SatelliteError>
   isClosed(): boolean
   startReplication(lsn?: LSN): Promise<void | SatelliteError>
   stopReplication(): Promise<void | SatelliteError>

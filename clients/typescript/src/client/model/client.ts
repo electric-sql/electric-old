@@ -5,6 +5,7 @@ import { DbSchema, TableSchema } from './schema'
 import { liveRaw, raw, Table } from './table'
 import { Row, Statement } from '../../util'
 import { LiveResult } from './model'
+import { Client } from '../../satellite'
 
 export type ClientTables<DB extends DbSchema<any>> = {
   [Tbl in keyof DB['tables']]: DB['tables'][Tbl] extends TableSchema<
@@ -68,12 +69,14 @@ export class ElectricClient<
   // Builds the DAL namespace from a `dbDescription` object
   static create<DB extends DbSchema<any>>(
     dbDescription: DB,
-    electric: ElectricNamespace
+    electric: ElectricNamespace,
+    satelliteClient: Client
   ): ElectricClient<DB> {
     const tables = dbDescription.extendedTables
     const createTable = (tableName: string) => {
       return new Table(
         tableName,
+        satelliteClient,
         electric.adapter,
         electric.notifier,
         dbDescription

@@ -49,9 +49,8 @@ export const electrify = async <DB extends DbSchema<any>>(
   const registry = opts?.registry || globalRegistry
 
   const electric = new ElectricNamespace(adapter, notifier)
-  const namespace = ElectricClient.create(dbDescription, electric) // extends the electric namespace with a `dal` property for the data access library
 
-  await registry.ensureStarted(
+  const satellite = await registry.ensureStarted(
     dbName,
     adapter,
     migrator,
@@ -61,5 +60,6 @@ export const electrify = async <DB extends DbSchema<any>>(
     configWithDefaults
   )
 
+  const namespace = ElectricClient.create(dbDescription, electric, satellite.client) // extends the electric namespace with a `dal` property for the data access library
   return namespace
 }

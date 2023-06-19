@@ -1,5 +1,3 @@
-//export type SelectInput<T> = { [field in keyof T]?: boolean }
-
 export interface FindInput<Select, Where, Include, OrderBy, ScalarFieldEnum> {
   where?: Where
   select?: Select

@@ -13,6 +13,8 @@ import {
   DataTransaction,
   Transaction,
   Relation,
+  Shape,
+  ShapeSubsResp
 } from '../util/types'
 
 import { Client, ConnectionWrapper, ConsoleClient, Satellite } from './index'
@@ -28,34 +30,17 @@ import { EventEmitter } from 'events'
 import { DEFAULT_LOG_POS } from '../util'
 
 export class MockSatelliteProcess implements Satellite {
-  config: SatelliteConfig
-  dbName: DbName
-  adapter: DatabaseAdapter
-  migrator: Migrator
-  notifier: Notifier
-  socketFactory: SocketFactory
-  console: ConsoleClient
-  opts: SatelliteOpts
-
   constructor(
-    dbName: DbName,
-    adapter: DatabaseAdapter,
-    migrator: Migrator,
-    notifier: Notifier,
-    socketFactory: SocketFactory,
-    console: ConsoleClient,
-    config: SatelliteConfig,
-    opts: SatelliteOpts
-  ) {
-    this.dbName = dbName
-    this.adapter = adapter
-    this.migrator = migrator
-    this.notifier = notifier
-    this.socketFactory = socketFactory
-    this.console = console
-    this.config = config
-    this.opts = opts
-  }
+    public dbName: DbName,
+    public client: Client,
+    public adapter: DatabaseAdapter,
+    public migrator: Migrator,
+    public notifier: Notifier,
+    public socketFactory: SocketFactory,
+    public console: ConsoleClient,
+    public config: SatelliteConfig,
+    public opts: SatelliteOpts,
+  ) {}
 
   async start(_authState?: AuthState): Promise<ConnectionWrapper> {
     await sleepAsync(50)
@@ -85,6 +70,7 @@ export class MockRegistry extends BaseRegistry {
 
     const satellite = new MockSatelliteProcess(
       dbName,
+      new MockSatelliteClient(),
       adapter,
       migrator,
       notifier,
@@ -133,6 +119,11 @@ export class MockSatelliteClient extends EventEmitter implements Client {
   }
   authenticate(_authState: AuthState): Promise<SatelliteError | AuthResponse> {
     return Promise.resolve({})
+  }
+  subscribeToShape(_shape: Shape): Promise<SatelliteError | ShapeSubsResp> {
+    return Promise.resolve({
+      subscriptionId: "1"
+    })
   }
   startReplication(
     lsn: LSN,
