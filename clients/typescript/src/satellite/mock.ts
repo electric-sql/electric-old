@@ -13,7 +13,6 @@ import {
   DataTransaction,
   Transaction,
   Relation,
-  Shape,
   ShapeSubsResp
 } from '../util/types'
 
@@ -28,11 +27,13 @@ import { BaseRegistry } from './registry'
 import { SocketFactory } from '../sockets'
 import { EventEmitter } from 'events'
 import { DEFAULT_LOG_POS } from '../util'
+import { Shape } from '../client/model/shapes'
 
 export class MockSatelliteProcess implements Satellite {
+  public client: Client
+
   constructor(
     public dbName: DbName,
-    public client: Client,
     public adapter: DatabaseAdapter,
     public migrator: Migrator,
     public notifier: Notifier,
@@ -40,7 +41,9 @@ export class MockSatelliteProcess implements Satellite {
     public console: ConsoleClient,
     public config: SatelliteConfig,
     public opts: SatelliteOpts,
-  ) {}
+  ) {
+    this.client = new MockSatelliteClient()
+  }
 
   async start(_authState?: AuthState): Promise<ConnectionWrapper> {
     await sleepAsync(50)
@@ -70,7 +73,6 @@ export class MockRegistry extends BaseRegistry {
 
     const satellite = new MockSatelliteProcess(
       dbName,
-      new MockSatelliteClient(),
       adapter,
       migrator,
       notifier,

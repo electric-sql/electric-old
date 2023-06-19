@@ -13,9 +13,9 @@ import {
   DataTransaction,
   Transaction,
   Relation,
-  Shape,
   ShapeSubsResp
 } from '../util/types'
+import { Shape } from '../client/model/shapes'
 
 export { SatelliteProcess } from './process'
 export { GlobalRegistry, globalRegistry } from './registry'

@@ -144,11 +144,6 @@ export type ConnectivityState =
   | 'disconnected'
   | 'error'
 
-export type TableName = string
-export type Shape = {
-  tables: TableName[]
-}
-
 export type ShapeSubsResp = {
   subscriptionId: string
 }

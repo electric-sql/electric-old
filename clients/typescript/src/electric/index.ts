@@ -10,6 +10,7 @@ import { ElectricNamespace } from './namespace'
 import { ElectricClient } from '../client/model/client'
 import { ConsoleHttpClient } from '../auth'
 import { DbSchema } from '../client/model/schema'
+import { shapeManager } from '../client/model/shapes'
 
 export { ElectricNamespace }
 
@@ -60,6 +61,8 @@ export const electrify = async <DB extends DbSchema<any>>(
     configWithDefaults
   )
 
-  const namespace = ElectricClient.create(dbDescription, electric, satellite.client) // extends the electric namespace with a `dal` property for the data access library
+  // initialize the shape manager
+  shapeManager.init(satellite.client)
+  const namespace = ElectricClient.create(dbDescription, electric) // extends the electric namespace with a `dal` property for the data access library
   return namespace
 }

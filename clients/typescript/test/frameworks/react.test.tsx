@@ -12,7 +12,6 @@ import { MockDatabase } from '../../src/drivers/react-native-sqlite-storage/mock
 
 import { ElectricNamespace } from '../../src/electric/index'
 import { MockNotifier } from '../../src/notifiers/mock'
-import { MockSatelliteClient } from '../../src/satellite/mock'
 import { QualifiedTablename } from '../../src/util/tablename'
 
 import { useLiveQuery } from '../../src/frameworks/react/hooks'
@@ -36,8 +35,7 @@ test('useLiveQuery returns query results', async (t) => {
   const adapter = new DatabaseAdapter(original, false)
   const notifier = new MockNotifier('test.db')
   const namespace = new ElectricNamespace(adapter, notifier)
-  const client = new MockSatelliteClient()
-  const dal = ElectricClient.create(dbSchema, namespace, client)
+  const dal = ElectricClient.create(dbSchema, namespace)
 
   const query = 'select i from bars'
   const liveQuery = dal.db.liveRaw({
@@ -60,8 +58,7 @@ test('useLiveQuery returns error when query errors', async (t) => {
 
   const notifier = new MockNotifier('test.db')
   const namespace = new ElectricNamespace(adapter, notifier)
-  const client = new MockSatelliteClient()
-  const dal = ElectricClient.create(dbSchema, namespace, client)
+  const dal = ElectricClient.create(dbSchema, namespace)
 
   const wrapper: FC = ({ children }) => {
     return <ElectricProvider db={dal}>{children}</ElectricProvider>
@@ -82,8 +79,7 @@ test('useLiveQuery re-runs query when data changes', async (t) => {
   const adapter = new DatabaseAdapter(original, false)
   const notifier = new MockNotifier('test.db')
   const namespace = new ElectricNamespace(adapter, notifier)
-  const client = new MockSatelliteClient()
-  const dal = ElectricClient.create(dbSchema, namespace, client)
+  const dal = ElectricClient.create(dbSchema, namespace)
 
   const query = 'select foo from bars'
   const liveQuery = dal.db.liveRaw({
@@ -119,8 +115,7 @@ test('useLiveQuery re-runs query when *aliased* data changes', async (t) => {
   const adapter = new DatabaseAdapter(original, false)
   const notifier = new MockNotifier('test.db')
   const namespace = new ElectricNamespace(adapter, notifier)
-  const client = new MockSatelliteClient()
-  const dal = ElectricClient.create(dbSchema, namespace, client)
+  const dal = ElectricClient.create(dbSchema, namespace)
 
   await notifier.attach('baz.db', 'baz')
 

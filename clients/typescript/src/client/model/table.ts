@@ -25,7 +25,7 @@ import omitBy from 'lodash.omitby'
 import hasOwn from 'object.hasown'
 import * as z from 'zod'
 import { parseTableNames, Row, Statement } from '../../util'
-import { Client } from '../../satellite'
+import { shapeManager } from './shapes'
 
 type AnyTable = Table<any, any, any, any, any, any, any, any, any, HKT>
 
@@ -80,7 +80,6 @@ export class Table<
 
   constructor(
     public tableName: string,
-    private satellite: Client,
     adapter: DatabaseAdapter,
     notifier: Notifier,
     private _dbDescription: DbSchema<any>
@@ -150,11 +149,12 @@ export class Table<
     const validatedInput = this.syncSchema.parse(i)
     // Recursively go over the included fields
     // and for each field store its table
-    const tables = this.getIncludedTables(validatedInput) // the tables the user wants to subscribe to
+    const tables = Array.from(this.getIncludedTables(validatedInput)) // the tables the user wants to subscribe to
+    const tableNames = tables.map(tbl => tbl.tableName)
     const shape = {
-      tables: Array.from(tables).map(tbl => tbl.tableName)
+      tables: tableNames
     }
-    await this.satellite.subscribeToShape(shape)
+    await shapeManager.sync(shape)
   }
 
   /*

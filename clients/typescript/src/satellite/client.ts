@@ -52,7 +52,6 @@ import {
   SchemaChange,
   OutgoingReplication,
   Transaction,
-  Shape,
   ShapeSubsResp
 } from '../util/types'
 import {
@@ -67,6 +66,7 @@ import { backOff, IBackOffOptions } from 'exponential-backoff'
 import { Notifier } from '../notifiers'
 import Log from 'loglevel'
 import { AuthState } from '../auth'
+import { Shape } from '../client/model/shapes'
 
 type IncomingHandler = { handle: (msg: any) => any | void; isRpc: boolean }
 
