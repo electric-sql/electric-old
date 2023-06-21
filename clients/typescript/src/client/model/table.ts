@@ -144,9 +144,9 @@ export class Table<
   }
 
   async syncShape<T extends SyncInput<Include>>(
-    i: T
+    i?: T
   ): Promise<void> {
-    const validatedInput = this.syncSchema.parse(i)
+    const validatedInput = this.syncSchema.parse(i ?? {})
     // Recursively go over the included fields
     // and for each field store its table
     const tables = Array.from(this.getIncludedTables(validatedInput)) // the tables the user wants to subscribe to

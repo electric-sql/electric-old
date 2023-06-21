@@ -7,9 +7,15 @@ export type Shape = {
   tables: TableName[]
 }
 
-class ShapeManager {
-  private syncedTables: Set<TableName>
-  private satellite?: Client
+interface IShapeManager {
+  init(satellite: Client): void
+  sync(shape: Shape): Promise<void>
+  isSynced(table: TableName): boolean
+}
+
+class ShapeManager implements IShapeManager {
+  protected syncedTables: Set<TableName>
+  protected satellite?: Client
 
   constructor() {
     this.syncedTables = new Set()
@@ -37,4 +43,18 @@ class ShapeManager {
   }
 }
 
+export class ShapeManagerMock extends ShapeManager {
+  constructor() {
+    super()
+  }
+
+  override async sync(shape: Shape): Promise<void> {
+    // Do not contact the server but directly store the synced tables
+    shape.tables.forEach(tbl => this.syncedTables.add(tbl))
+    // method returns and promise will resolve
+    // as if the server acknowledged the subscription
+  }
+}
+
+// a shape manager singleton
 export const shapeManager = new ShapeManager()
