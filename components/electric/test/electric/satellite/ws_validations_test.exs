@@ -244,6 +244,54 @@ defmodule Electric.Satellite.WsValidationsTest do
     end)
   end
 
+  test "validates fixed-length string values", ctx do
+    vsn = "2023072505"
+
+    :ok =
+      migrate(
+        ctx.db,
+        vsn,
+        "public.foo",
+        "CREATE TABLE public.foo (id TEXT PRIMARY KEY, c1 CHARACTER(1), c10 CHAR(10), vc1 VARCHAR(1), vc2 CHARACTER VARYING(10))"
+      )
+
+    valid_records = [
+      %{"id" => "1", "c1" => "", "c10" => ""},
+      %{"id" => "2", "c1" => "1", "c10" => "1234567890"},
+      %{"id" => "3", "vc1" => "", "vc2" => ""},
+      %{"id" => "4", "vc1" => ".", "vc2" => "0987654321"}
+    ]
+
+    within_replication_context(ctx, vsn, fn conn ->
+      Enum.each(valid_records, fn record ->
+        tx_op_log = serialize_trans(record)
+        MockClient.send_data(conn, tx_op_log)
+      end)
+
+      # Wait long enough for the server to process our messages, thus confirming it has been accepted
+      ping_server(conn)
+
+      refute_receive {^conn, %SatErrorResp{error_type: :INVALID_REQUEST}}
+    end)
+
+    invalid_records = [
+      %{"id" => "10", "c1" => "12"},
+      %{"id" => "11", "c1" => "1234567890"},
+      %{"id" => "12", "c10" => "12345678901"},
+      %{"id" => "13", "vc1" => "34"},
+      %{"id" => "14", "vc1" => "+++++++"},
+      %{"id" => "15", "vc2" => "12345678901"}
+    ]
+
+    Enum.each(invalid_records, fn record ->
+      within_replication_context(ctx, vsn, fn conn ->
+        tx_op_log = serialize_trans(record)
+        MockClient.send_data(conn, tx_op_log)
+        assert_receive {^conn, %SatErrorResp{error_type: :INVALID_REQUEST}}
+      end)
+    end)
+  end
+
   defp within_replication_context(ctx, vsn, expectation_fn) do
     with_connect(ctx.conn_opts, fn conn ->
       # Replication start ceremony
