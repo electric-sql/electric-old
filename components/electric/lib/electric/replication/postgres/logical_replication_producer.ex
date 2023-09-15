@@ -129,6 +129,7 @@ defmodule Electric.Replication.Postgres.LogicalReplicationProducer do
   def handle_info({:epgsql, _pid, {:x_log_data, _start_lsn, _end_lsn, binary_msg}}, state) do
     binary_msg
     |> LogicalReplication.decode_message()
+    |> IO.inspect()
     |> process_message(state)
   end
 

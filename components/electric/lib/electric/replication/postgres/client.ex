@@ -35,6 +35,7 @@ defmodule Electric.Replication.Postgres.Client do
     case :epgsql.connect(conn, host, username, password, config) do
       {:ok, ^conn} ->
         try do
+          IO.inspect(:epgsql.squery(conn, "SHOW search_path"), label: :search_path)
           fun.(conn)
         rescue
           e ->
@@ -220,10 +221,16 @@ defmodule Electric.Replication.Postgres.Client do
 
   @doc """
   Retrieve the db assigned oid of the given table, index, view or trigger.
+
+  https://www.postgresql.org/message-id/16991-bcaeaafa17e0a723%40postgresql.org
   """
   @spec relation_oid(connection(), :table | :index | :view | :trigger, String.t(), String.t()) ::
           {:ok, integer()} | {:error, term()}
   def relation_oid(conn, rel_type, schema, table) do
+    # query_str = "SELECT '#{schema}.#{table}'::regclass::oid"
+    # with {:ok, _, [{oid}]} <- :epgsql.squery(conn, query_str) do
+    # query_str = "SELECT (quote_ident($1) || '.' || quote_ident($2))::regclass::oid"
+    # with {:ok, _, [{oid}]} <- :epgsql.equery(conn, query_str, [schema, table]) do
     with {:ok, relkind} <- Map.fetch(@relkind, rel_type),
          {:ok, _, [{oid}]} <- :epgsql.equery(conn, @pg_class_query, [schema, table, relkind]) do
       {:ok, String.to_integer(oid)}
@@ -231,6 +238,48 @@ defmodule Electric.Replication.Postgres.Client do
       error ->
         Logger.warning(
           "Unable to retrieve oid for #{inspect([rel_type, schema, table])}: #{inspect(error)}"
+        )
+
+        IO.inspect(:epgsql.equery(conn, "SELECT * FROM pg_namespace", []),
+          label: :all_from_pg_namespace
+        )
+
+        IO.inspect(:epgsql.equery(conn, "SELECT * FROM pg_class c WHERE c.relname = $1", [table]),
+          label: :pg_class_where_relname
+        )
+
+        IO.inspect(
+          :epgsql.equery(conn, "SELECT * FROM pg_class c WHERE c.relname = quote_ident($1)", [
+            table
+          ]),
+          label: :pg_class_where_quote_ident
+        )
+
+        IO.inspect(
+          :epgsql.equery(
+            conn,
+            "SELECT * FROM pg_class c INNER JOIN pg_namespace n ON c.relnamespace = n.oid WHERE n.nspname = $1",
+            [schema]
+          ),
+          label: :pg_class_all_in_public
+        )
+
+        IO.inspect(:epgsql.squery(conn, "SELECT '#{schema}.#{table}'::regclass::oid"),
+          label: :regclass_Squery
+        )
+
+        IO.inspect(
+          :epgsql.equery(conn, "SELECT ($1 || '.' || $2)::regclass::oid", [schema, table]),
+          label: :regclass_Equery
+        )
+
+        IO.inspect(
+          :epgsql.equery(
+            conn,
+            "SELECT (quote_ident($1) || '.' || quote_ident($2))::regclass::oid",
+            [schema, table]
+          ),
+          label: :reglass_quote_ident
         )
 
         {:error, :relation_missing}
