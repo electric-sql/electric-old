@@ -231,6 +231,9 @@ defmodule Electric.Replication.Postgres.Client do
     # with {:ok, _, [{oid}]} <- :epgsql.squery(conn, query_str) do
     # query_str = "SELECT (quote_ident($1) || '.' || quote_ident($2))::regclass::oid"
     # with {:ok, _, [{oid}]} <- :epgsql.equery(conn, query_str, [schema, table]) do
+
+    Process.sleep(1000)
+
     with {:ok, relkind} <- Map.fetch(@relkind, rel_type),
          {:ok, _, [{oid}]} <- :epgsql.equery(conn, @pg_class_query, [schema, table, relkind]) do
       {:ok, String.to_integer(oid)}
