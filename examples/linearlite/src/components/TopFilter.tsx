@@ -1,5 +1,5 @@
 import { ReactComponent as MenuIcon } from '../assets/icons/menu.svg'
-import { useState, useContext } from 'react'
+import { useState, useContext, useEffect, useRef } from 'react'
 import { BsSortUp, BsPlus, BsX, BsSearch as SearchIcon } from 'react-icons/bs'
 import debounce from 'lodash.debounce'
 import { useLiveQuery } from 'electric-sql/react'
@@ -28,6 +28,8 @@ export default function ({
   const [showViewOption, setShowViewOption] = useState(false)
   const { showMenu, setShowMenu } = useContext(MenuContext)!
   const [searchQuery, setSearchQuery] = useState('')
+  const [searchQueryDirty, setSearchQueryDirty] = useState(false)
+  const searchInputRef = useRef<HTMLInputElement>(null)
 
   // We don't yet have a DAL for counts, so we use raw SQL
   const totalIssuesCount: number =
@@ -45,8 +47,21 @@ export default function ({
 
   const handleSearch = (query: string) => {
     setSearchQuery(query)
+    setSearchQueryDirty(true)
     handleSearchInner(query)
   }
+
+  useEffect(() => {
+    if (filterState.query === searchQuery && searchQueryDirty) {
+      setSearchQueryDirty(false)
+    }
+  }, [filterState.query, searchQuery, searchQueryDirty])
+
+  useEffect(() => {
+    if (showSearch) {
+      searchInputRef.current?.focus()
+    }
+  }, [showSearch])
 
   const eqStatuses = (statuses: string[]) => {
     const statusSet = new Set(statuses)
@@ -159,8 +174,9 @@ export default function ({
           <SearchIcon className="w-3.5 h-3.5 ms-3 absolute" />
           <input
             type="search"
+            ref={searchInputRef}
             className="w-full bg-gray-100 border-0 rounded px-2 py-1.5 ps-9"
-            value={searchQuery}
+            value={searchQueryDirty ? searchQuery : filterState.query}
             onChange={(e) => handleSearch(e.target.value)}
           />
         </div>
