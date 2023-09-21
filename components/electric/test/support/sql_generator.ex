@@ -144,10 +144,10 @@ defmodule Electric.Postgres.SQLGenerator do
   def valid,
     do:
       tuple({
-        string([?a..?z, ?A..?Z], min_length: 6, max_length: 12),
+        string([?A..?Z], min_length: 6, max_length: 12),
         member_of(["", "_"]),
-        string(Enum.concat([?a..?z, ?A..?Z]), min_length: 8, max_length: 18),
-        string(Enum.concat([?a..?z, ?A..?Z]), min_length: 8, max_length: 18)
+        string(Enum.concat([?A..?Z]), min_length: 8, max_length: 18),
+        string(Enum.concat([?A..?Z]), min_length: 8, max_length: 18)
       })
       |> map(fn {a, j, c, d} -> a <> j <> c <> j <> d end)
       |> unshrinkable()
