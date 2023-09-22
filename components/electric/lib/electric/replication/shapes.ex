@@ -42,7 +42,7 @@ defmodule Electric.Replication.Shapes do
   @spec validate_requests([%SatShapeReq{}, ...], String.t()) ::
           {:ok, [ShapeRequest.t(), ...]} | {:error, [{String.t(), atom(), String.t()}]}
   def validate_requests(shape_requests, origin) do
-    {:ok, _, schema} = SchemaCache.load(origin)
+    {:ok, _, schema} = SchemaCache.schema(origin)
     # TODO: Move this graph calculation to the SchemaCache when #191 is merged
     graph = Schema.public_fk_graph(schema)
 

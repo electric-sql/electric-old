@@ -100,7 +100,7 @@ defmodule Electric.Replication.InitialSync do
       ) do
     Client.with_conn(Connectors.get_connection_opts(opts, replication: false), fn conn ->
       origin = Connectors.origin(opts)
-      {:ok, _, schema} = Extension.SchemaCache.load(origin)
+      {:ok, _, schema} = Extension.SchemaCache.schema(origin)
 
       :epgsql.with_transaction(
         conn,

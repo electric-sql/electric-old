@@ -70,12 +70,12 @@ defmodule Electric.Postgres.Extension.SchemaCache do
     {:ok, Connectors.origin(conn_config)}
   end
 
-  def load(origin) do
-    call(origin, {:load, :current})
+  def schema(origin) do
+    call(origin, {:schema, :current})
   end
 
-  def load(origin, version) do
-    call(origin, {:load, {:version, version}})
+  def schema(origin, version) do
+    call(origin, {:schema, {:version, version}})
   end
 
   def save(origin, version, schema, stmts) do
@@ -200,6 +200,7 @@ defmodule Electric.Postgres.Extension.SchemaCache do
       conn_config: conn_config,
       opts: opts,
       current: nil,
+      schema_versions: %{},
       refresh_task: nil,
       internal_schema: nil
     }
@@ -208,22 +209,13 @@ defmodule Electric.Postgres.Extension.SchemaCache do
   end
 
   @impl GenServer
-  def handle_call({:load, :current}, _from, %{current: nil} = state) do
-    {result, state} = load_current_schema(state)
-
-    {:reply, result, state}
+  def handle_call({:schema, :current}, _from, %{current: {version, schema}} = state) do
+    {:reply, {version, schema}, state}
   end
 
-  def handle_call({:load, :current}, _from, %{current: {version, schema}} = state) do
-    {:reply, {:ok, version, schema}, state}
-  end
-
-  def handle_call({:load, {:version, version}}, _from, %{current: {version, schema}} = state) do
-    {:reply, {:ok, version, schema}, state}
-  end
-
-  def handle_call({:load, {:version, version}}, _from, state) do
-    {:reply, SchemaLoader.load(state.backend, version), state}
+  def handle_call({:schema, {:version, version}}, _from, state) do
+    {version, schema} = Map.fetch!(state.schema_versions, version)
+    {:reply, {version, schema}, state}
   end
 
   def handle_call({:save, version, schema, stmts}, _from, state) do
