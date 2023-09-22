@@ -23,8 +23,6 @@ defmodule Electric.Postgres.Extension.SchemaCache do
 
   require Logger
 
-  @behaviour SchemaLoader
-
   def child_spec({conn_config, _opts} = args) do
     child_spec(Connectors.origin(conn_config), args)
   end
@@ -68,57 +66,46 @@ defmodule Electric.Postgres.Extension.SchemaCache do
     end
   end
 
-  @impl SchemaLoader
   def connect(conn_config, _opts) do
     {:ok, Connectors.origin(conn_config)}
   end
 
-  @impl SchemaLoader
   def load(origin) do
     call(origin, {:load, :current})
   end
 
-  @impl SchemaLoader
   def load(origin, version) do
     call(origin, {:load, {:version, version}})
   end
 
-  @impl SchemaLoader
   def save(origin, version, schema, stmts) do
     call(origin, {:save, version, schema, stmts})
   end
 
-  @impl SchemaLoader
   def relation_oid(origin, type, schema, name) do
     call(origin, {:relation_oid, type, schema, name})
   end
 
-  @impl SchemaLoader
   def primary_keys(origin, {schema, name}) do
     call(origin, {:primary_keys, schema, name})
   end
 
-  @impl SchemaLoader
   def primary_keys(origin, schema, name) do
     call(origin, {:primary_keys, schema, name})
   end
 
-  @impl SchemaLoader
   def refresh_subscription(origin, name) do
     call(origin, {:refresh_subscription, name})
   end
 
-  @impl SchemaLoader
   def migration_history(origin, version) do
     call(origin, {:migration_history, version})
   end
 
-  @impl SchemaLoader
   def known_migration_version?(origin, version) do
     call(origin, {:known_migration_version?, version})
   end
 
-  @impl SchemaLoader
   def internal_schema(origin) do
     call(origin, :internal_schema)
   end
