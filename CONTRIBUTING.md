@@ -43,6 +43,7 @@ Be sure to include a title and clear description, as much relevant information a
 
 * open a new GitHub pull request with the patch
 * ensure the PR description clearly describes the problem and solution. Include the relevant issue number if applicable
+* create a changeset with a concise one-liner describing the patch using the command `pnpm changeset`.
 
 ### Do you intend to add a new feature or change an existing one?
 
