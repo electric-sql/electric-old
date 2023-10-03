@@ -41,8 +41,7 @@ export const initElectric = async () => {
     url: electricUrl,
     debug: DEBUG,
   }
-
-  const conn = await ElectricDatabase.init(dbName, distPath)
+  const conn = await ElectricDatabase.init(dbName, distPath, 'InMemory')
   if (DEBUG) {
     console.log('initElectric')
     console.log('dbName', dbName)

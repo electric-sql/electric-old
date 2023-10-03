@@ -44,15 +44,16 @@ const App = () => {
       try {
         const client = await initElectric()
         setElectric(client)
+        const syncStart = performance.now()
         const { synced } = await client.db.issue.sync({
           include: {
             comment: true,
           },
         })
         await synced
-        const timeToSync = performance.now()
+        const timeToSync = performance.now() - syncStart
         if (DEBUG) {
-          console.log(`Synced in ${timeToSync}ms from page load`)
+          console.log(`Synced in ${timeToSync}ms`)
         }
       } catch (error) {
         if (
