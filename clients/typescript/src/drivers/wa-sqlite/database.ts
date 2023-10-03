@@ -1,14 +1,4 @@
-// Import the asynchronous WASM build because we will be using IndexedDB
-// which is an async Virtual File System (VFS).
-import SQLiteAsyncESMFactory from 'wa-sqlite/dist/wa-sqlite-async.mjs'
-
 import * as SQLite from 'wa-sqlite'
-
-// This is the recommended IndexedDB VFS
-// It is preferable over OPFS because OPFS works only in a worker
-// and is not yet supported on all browsers
-// see: https://github.com/rhashimoto/wa-sqlite/tree/master/src/examples
-import { IDBBatchAtomicVFS } from 'wa-sqlite/src/examples/IDBBatchAtomicVFS.js'
 
 import { SqlValue, Statement } from '../../util'
 import { QueryExecResult } from '../util/results'
@@ -25,6 +15,8 @@ export interface Database {
   exec(statement: Statement): Promise<QueryExecResult>
   getRowsModified(): number
 }
+
+export type VFSName = 'InMemory' | 'IDBBatchAtomic'
 
 export class ElectricDatabase implements Database {
   mutex: Mutex
@@ -94,8 +86,66 @@ export class ElectricDatabase implements Database {
     return this.sqlite3.changes(this.db)
   }
 
-  // Creates and opens a DB backed by an IndexedDB filesystem
-  static async init(dbName: string, sqliteDistPath: string) {
+  // Creates and opens a DB backed by selected VFS
+  static async init(
+    dbName: string,
+    sqliteDistPath: string,
+    vfsName: VFSName = 'IDBBatchAtomic'
+  ) {
+    // Initialize the DB - default to IDBBatchAtomic VFS
+    switch (vfsName) {
+      case 'InMemory':
+        return this.initInMemory(dbName, sqliteDistPath)
+      case 'IDBBatchAtomic':
+        return this.initIDBBatchAtomic(dbName, sqliteDistPath)
+    }
+  }
+
+  static async initInMemory(dbName: string, sqliteDistPath: string) {
+    // Import the synchronous WASM build because we will be using an in-memory VFS
+    // and the synchronous build is faster than the async build
+    const SQLiteESMFactory = (await import('wa-sqlite/dist/wa-sqlite.mjs'))
+      .default
+    // Import the in-memory VFS
+    const { MemoryVFS } = await import('wa-sqlite/src/examples/MemoryVFS.js')
+
+    // Initialize SQLite
+    const SQLiteModule = await SQLiteESMFactory({
+      locateFile: (path: string) => {
+        return sqliteDistPath + path
+      },
+    })
+
+    // Build API objects for the module
+    const sqlite3 = SQLite.Factory(SQLiteModule)
+
+    // Register a Virtual File System with the SQLite runtime
+    const vfs = new MemoryVFS() as any
+    await vfs.isReady
+    sqlite3.vfs_register(vfs)
+
+    // Open the DB connection
+    // see: https://rhashimoto.github.io/wa-sqlite/docs/interfaces/SQLiteAPI.html#open_v2
+    const db = await sqlite3.open_v2(dbName)
+
+    return new ElectricDatabase(dbName, sqlite3, db)
+  }
+
+  static async initIDBBatchAtomic(dbName: string, sqliteDistPath: string) {
+    // Import the asynchronous WASM build because we will be using IndexedDB
+    // which is an async Virtual File System (VFS).
+    const SQLiteAsyncESMFactory = (
+      await import('wa-sqlite/dist/wa-sqlite-async.mjs')
+    ).default
+
+    // This is the recommended IndexedDB VFS
+    // It is preferable over OPFS because OPFS works only in a worker
+    // and is not yet supported on all browsers
+    // see: https://github.com/rhashimoto/wa-sqlite/tree/master/src/examples
+    const { IDBBatchAtomicVFS } = await import(
+      'wa-sqlite/src/examples/IDBBatchAtomicVFS.js'
+    )
+
     // Initialize SQLite
     const SQLiteAsyncModule = await SQLiteAsyncESMFactory({
       locateFile: (path: string) => {
