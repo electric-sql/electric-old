@@ -2,7 +2,13 @@ import { LIB_VERSION } from 'electric-sql/version'
 import { makeElectricContext } from 'electric-sql/react'
 import { uniqueTabId, genUUID } from 'electric-sql/util'
 import { insecureAuthToken } from 'electric-sql/auth'
-import { electrify, ElectricDatabase } from 'electric-sql/wa-sqlite'
+
+// Rather than import the built library, we import the source code directly so that
+// Vite is responsible for compiling it. This makes Workers work.
+//import { electrify, ElectricDatabase } from 'electric-sql/wa-sqlite'
+import { electrify, ElectricDatabase } from '../../../clients/typescript/src/drivers/wa-sqlite'
+
+
 import { Electric, schema } from './generated/client'
 export type { Issue } from './generated/client'
 
@@ -41,9 +47,11 @@ export const initElectric = async () => {
     url: electricUrl,
     debug: DEBUG,
   }
-  const conn = await ElectricDatabase.init(dbName, distPath, 'InMemory')
   if (DEBUG) {
     console.log('initElectric')
+  }
+  const conn = await ElectricDatabase.init(dbName, distPath, 'AccessHandlePool', true)
+  if (DEBUG) {
     console.log('dbName', dbName)
     console.log(conn)
     console.log(schema)

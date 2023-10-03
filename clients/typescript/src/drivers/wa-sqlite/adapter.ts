@@ -22,6 +22,7 @@ export class DatabaseAdapter implements DatabaseAdapterInterface {
     // Uses a mutex to ensure that transactions are not interleaved.
     // This is needed because transactions are executed manually using `BEGIN` and `COMMIT` commands.
     const release = await this.txMutex.acquire()
+    // const start = performance.now()
     let open = false
     let rowsAffected = 0
     try {
@@ -45,6 +46,8 @@ export class DatabaseAdapter implements DatabaseAdapterInterface {
       if (open) {
         await this.db.exec({ sql: 'COMMIT' })
       }
+      // const end = performance.now()
+      // console.log(`[wa-sqlite] runInTransaction took ${end - start} ms`)
       release()
     }
   }
@@ -100,7 +103,7 @@ export class DatabaseAdapter implements DatabaseAdapterInterface {
   async _runUncoordinated(stmt: Statement): Promise<RunResult> {
     await this.db.exec(stmt)
     return {
-      rowsAffected: this.db.getRowsModified(),
+      rowsAffected: await this.db.getRowsModified(),
     }
   }
 

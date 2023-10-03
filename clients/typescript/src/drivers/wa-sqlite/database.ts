@@ -2,6 +2,7 @@ import * as SQLite from 'wa-sqlite'
 
 import { SqlValue, Statement } from '../../util'
 import { QueryExecResult } from '../util/results'
+import type { DatabaseWorkerAPI } from './databaseWorker'
 
 import { Mutex } from 'async-mutex'
 
@@ -13,10 +14,15 @@ const emptyResult = {
 export interface Database {
   name: string
   exec(statement: Statement): Promise<QueryExecResult>
-  getRowsModified(): number
+  getRowsModified(): Promise<number>
 }
 
-export type VFSName = 'InMemory' | 'IDBBatchAtomic'
+export type VFSName =
+  | 'InMemory'
+  | 'IDBBatchAtomic'
+  | 'Default'
+  | 'OriginPrivateFileSystem'
+  | 'AccessHandlePool'
 
 export class ElectricDatabase implements Database {
   mutex: Mutex
@@ -35,6 +41,8 @@ export class ElectricDatabase implements Database {
     // Uses a mutex to ensure that the execution of SQL statements is not interleaved
     // otherwise wa-sqlite may encounter problems such as indices going out of bounds
     const release = await this.mutex.acquire()
+
+    // const start = performance.now()
 
     const str = this.sqlite3.str_new(this.db, statement.sql)
     let prepared
@@ -78,11 +86,15 @@ export class ElectricDatabase implements Database {
       }
     } finally {
       await this.sqlite3.finalize(stmt)
+
+      // const end = performance.now()
+      // console.log(`[wa-sqlite] exec took ${end - start}ms`, statement)
+
       release()
     }
   }
 
-  getRowsModified() {
+  async getRowsModified() {
     return this.sqlite3.changes(this.db)
   }
 
@@ -90,15 +102,43 @@ export class ElectricDatabase implements Database {
   static async init(
     dbName: string,
     sqliteDistPath: string,
-    vfsName: VFSName = 'IDBBatchAtomic'
+    vfsName: VFSName = 'IDBBatchAtomic',
+    inWorker?: boolean,
+    workerUrl?: URL
   ) {
+    if (inWorker) {
+      console.log('Initializing worker database')
+      return this.initWorkerDatabase(dbName, sqliteDistPath, vfsName, workerUrl)
+    }
     // Initialize the DB - default to IDBBatchAtomic VFS
     switch (vfsName) {
+      case 'Default':
+        return this.initDefault(dbName, sqliteDistPath)
       case 'InMemory':
         return this.initInMemory(dbName, sqliteDistPath)
       case 'IDBBatchAtomic':
         return this.initIDBBatchAtomic(dbName, sqliteDistPath)
+      case 'OriginPrivateFileSystem':
+        return this.initOriginPrivateFileSystem(dbName, sqliteDistPath)
+      case 'AccessHandlePool':
+        return this.initAccessHandlePool(dbName, sqliteDistPath)
     }
+  }
+
+  static async initDefault(dbName: string, sqliteDistPath: string) {
+    // Import the synchronous WASM build because we will be using an in-memory VFS
+    // and the synchronous build is faster than the async build
+    const SQLiteESMFactory = (await import('wa-sqlite/dist/wa-sqlite.mjs'))
+      .default
+
+    const SQLiteModule = await SQLiteESMFactory({
+      locateFile: (path: string) => {
+        return sqliteDistPath + path
+      },
+    })
+    const sqlite3 = SQLite.Factory(SQLiteModule)
+    const db = await sqlite3.open_v2(dbName)
+    return new ElectricDatabase(dbName, sqlite3, db)
   }
 
   static async initInMemory(dbName: string, sqliteDistPath: string) {
@@ -116,18 +156,13 @@ export class ElectricDatabase implements Database {
       },
     })
 
-    // Build API objects for the module
     const sqlite3 = SQLite.Factory(SQLiteModule)
 
-    // Register a Virtual File System with the SQLite runtime
     const vfs = new MemoryVFS() as any
     await vfs.isReady
-    sqlite3.vfs_register(vfs)
+    sqlite3.vfs_register(vfs, true)
 
-    // Open the DB connection
-    // see: https://rhashimoto.github.io/wa-sqlite/docs/interfaces/SQLiteAPI.html#open_v2
     const db = await sqlite3.open_v2(dbName)
-
     return new ElectricDatabase(dbName, sqlite3, db)
   }
 
@@ -138,35 +173,105 @@ export class ElectricDatabase implements Database {
       await import('wa-sqlite/dist/wa-sqlite-async.mjs')
     ).default
 
-    // This is the recommended IndexedDB VFS
-    // It is preferable over OPFS because OPFS works only in a worker
-    // and is not yet supported on all browsers
-    // see: https://github.com/rhashimoto/wa-sqlite/tree/master/src/examples
     const { IDBBatchAtomicVFS } = await import(
       'wa-sqlite/src/examples/IDBBatchAtomicVFS.js'
     )
 
-    // Initialize SQLite
     const SQLiteAsyncModule = await SQLiteAsyncESMFactory({
       locateFile: (path: string) => {
         return sqliteDistPath + path
       },
     })
 
-    // Build API objects for the module
     const sqlite3 = SQLite.Factory(SQLiteAsyncModule)
 
-    // Register a Virtual File System with the SQLite runtime
-    sqlite3.vfs_register(new IDBBatchAtomicVFS(dbName))
+    const vfs = new IDBBatchAtomicVFS(dbName) as any
+    await vfs.isReady
+    sqlite3.vfs_register(vfs, true)
 
-    // Open the DB connection
-    // see: https://rhashimoto.github.io/wa-sqlite/docs/interfaces/SQLiteAPI.html#open_v2
     const db = await sqlite3.open_v2(
       dbName,
       SQLite.SQLITE_OPEN_CREATE | SQLite.SQLITE_OPEN_READWRITE,
       dbName
     )
-
     return new ElectricDatabase(dbName, sqlite3, db)
+  }
+
+  static async initOriginPrivateFileSystem(
+    dbName: string,
+    sqliteDistPath: string
+  ) {
+    // Import the asynchronous WASM build because we will be using OPFS which is
+    // async.
+    const SQLiteAsyncESMFactory = (
+      await import('wa-sqlite/dist/wa-sqlite-async.mjs')
+    ).default
+
+    const { OriginPrivateFileSystemVFS } = await import(
+      'wa-sqlite/src/examples/OriginPrivateFileSystemVFS.js'
+    )
+
+    const SQLiteAsyncModule = await SQLiteAsyncESMFactory({
+      locateFile: (path: string) => {
+        return sqliteDistPath + path
+      },
+    })
+
+    const sqlite3 = SQLite.Factory(SQLiteAsyncModule)
+
+    const vfs = new OriginPrivateFileSystemVFS(dbName) as any
+    await vfs.isReady
+    sqlite3.vfs_register(vfs, true)
+
+    const db = await sqlite3.open_v2(dbName)
+    return new ElectricDatabase(dbName, sqlite3, db)
+  }
+
+  static async initAccessHandlePool(dbName: string, sqliteDistPath: string) {
+    // Import the synchronous WASM build because we will be using the 
+    // AccessHandlePool VFS which is synchronous.
+    const SQLiteESMFactory = (await import('wa-sqlite/dist/wa-sqlite.mjs'))
+      .default
+
+    const { AccessHandlePoolVFS } = await import(
+      'wa-sqlite/src/examples/AccessHandlePoolVFS.js'
+    )
+
+    const SQLiteAsyncModule = await SQLiteESMFactory({
+      locateFile: (path: string) => {
+        return sqliteDistPath + path
+      },
+    })
+
+    const sqlite3 = SQLite.Factory(SQLiteAsyncModule)
+
+    const vfs = new AccessHandlePoolVFS(dbName) as any
+    await vfs.isReady
+    sqlite3.vfs_register(vfs, true)
+
+    const db = await sqlite3.open_v2(dbName)
+    return new ElectricDatabase(dbName, sqlite3, db)
+  }
+
+  static async initWorkerDatabase(
+    dbName: string,
+    sqliteDistPath: string,
+    vfsName: VFSName = 'IDBBatchAtomic',
+    workerUrl?: URL
+  ): Promise<Database> {
+    const Comlink = await import('comlink')
+    if (workerUrl === undefined) {
+      workerUrl = new URL('./databaseWorker.ts', import.meta.url)
+    }
+    const worker = new Worker(workerUrl, {
+      type: 'module',
+    })
+    const workerAPI = Comlink.wrap<DatabaseWorkerAPI>(worker)
+    await workerAPI.init(dbName, sqliteDistPath, vfsName)
+    return {
+      name: dbName,
+      exec: workerAPI.exec,
+      getRowsModified: workerAPI.getRowsModified,
+    }
   }
 }

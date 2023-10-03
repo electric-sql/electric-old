@@ -23,17 +23,17 @@ const slideUp = cssTransition({
   exit: 'animate__animated animate__slideOutDown',
 })
 
-function deleteDB() {
-  console.log("Deleting DB as schema doesn't match server's")
-  const DBDeleteRequest = window.indexedDB.deleteDatabase(dbName)
-  DBDeleteRequest.onsuccess = function () {
-    console.log('Database deleted successfully')
-  }
-  // the indexedDB cannot be deleted if the database connection is still open,
-  // so we need to reload the page to close any open connections.
-  // On reload, the database will be recreated.
-  window.location.reload()
-}
+// function deleteDB() {
+//   console.log("Deleting DB as schema doesn't match server's")
+//   const DBDeleteRequest = window.indexedDB.deleteDatabase(dbName)
+//   DBDeleteRequest.onsuccess = function () {
+//     console.log('Database deleted successfully')
+//   }
+//   // the indexedDB cannot be deleted if the database connection is still open,
+//   // so we need to reload the page to close any open connections.
+//   // On reload, the database will be recreated.
+//   window.location.reload()
+// }
 
 const App = () => {
   const [electric, setElectric] = useState<Electric>()
@@ -61,7 +61,7 @@ const App = () => {
             "Local schema doesn't match server's"
           )
         ) {
-          deleteDB()
+          // deleteDB()
         }
         throw error
       }

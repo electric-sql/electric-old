@@ -25,7 +25,7 @@ export class MockDatabase implements Database {
     }
   }
 
-  getRowsModified(): number {
+  async getRowsModified(): Promise<number> {
     return 0
   }
 }
