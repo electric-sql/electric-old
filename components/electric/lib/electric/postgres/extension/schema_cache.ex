@@ -182,7 +182,7 @@ defmodule Electric.Postgres.Extension.SchemaCache do
     origin = Connectors.origin(conn_config)
 
     Logger.metadata(pg_producer: origin)
-    Logger.info("Starting #{__MODULE__} for #{origin}")
+    Logger.info("Starting #{inspect(__MODULE__)} for #{origin}")
     # NOTE: this allows for a global SchemaCache instance even if the current configuration
     #       requires there to be a schema cache per pg instance
     # TODO: remove this in favour of a global (or namespace-able) consistent
