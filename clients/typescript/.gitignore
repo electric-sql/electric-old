@@ -1,8 +1,9 @@
 *.log
 .DS_Store
+.tmp/
+.tool-versions
+build/
 dist/
 node_modules/
+src/_generated/
 test.db
-.tmp/
-build/
-.tool-versions
