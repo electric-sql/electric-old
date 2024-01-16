@@ -1,4 +1,6 @@
 defmodule Electric.Postgres.Schema.Proto do
+  use Protox, files: ["../../protocol/postgres_schema.proto"]
+
   def range_var([relname]) do
     %__MODULE__.RangeVar{name: relname}
   end
