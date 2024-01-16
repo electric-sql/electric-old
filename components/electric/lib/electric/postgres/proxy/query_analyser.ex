@@ -321,10 +321,30 @@ defimpl QueryAnalyser, for: PgQuery.RenameStmt do
   import QueryAnalyser.Impl
 
   def analyse(stmt, %QueryAnalysis{electrified?: false} = analysis, _state) do
+    IO.puts("RenameStmt electrified?=false")
+    IO.inspect(stmt)
+    # %PgQuery.RenameStmt{
+    #   rename_type: :OBJECT_TYPE,
+    #   relation_type: :OBJECT_ACCESS_METHOD,
+    #   relation: nil,
+    #   object: %PgQuery.Node{
+    #     node: {:list,
+    #      %PgQuery.List{
+    #        items: [%PgQuery.Node{node: {:string, %PgQuery.String{sval: "foo"}}}]
+    #      }}
+    #   },
+    #   subname: "",
+    #   newname: "bar",
+    #   behavior: :DROP_RESTRICT,
+    #   missing_ok: false
+    # }
+    IO.inspect(analysis)
     %{analysis | action: action(stmt), tx?: true}
   end
 
   def analyse(stmt, %QueryAnalysis{electrified?: true} = analysis, _state) do
+    IO.puts("RenameStmt electrified?=true")
+
     %{
       analysis
       | action: action(stmt),

@@ -5,52 +5,38 @@ defmodule Electric.Postgres.Proxy.QueryAnalyserTest do
   alias Electric.Postgres.Proxy.{Injector.State, Parser}
   alias Electric.Postgres.MockSchemaLoader
   alias Electric.Postgres.Extension.SchemaLoader
+  alias Electric.Postgres.Proxy.QueryAnalysis
   alias Electric.Postgres.SQLGenerator
   alias PgProtocol.Message, as: M
 
-  def simple(sql), do: %M.Query{query: sql}
-  def extended(sql, attrs \\ []), do: struct(M.Parse, Keyword.put(attrs, :query, sql))
+  setup do
+    # enable all the optional ddlx features
+    Electric.Features.process_override(
+      proxy_ddlx_grant: true,
+      proxy_ddlx_revoke: true,
+      proxy_ddlx_assign: true,
+      proxy_ddlx_unassign: true
+    )
+
+    migrations = [
+      {"0001",
+       [
+         "CREATE TABLE public.truths (id uuid PRIMARY KEY, value text)",
+         "CREATE INDEX truths_idx ON public.truths (value)"
+       ]}
+    ]
+
+    spec = MockSchemaLoader.backend_spec(migrations: migrations)
+
+    {:ok, loader} =
+      SchemaLoader.connect(spec, [])
+
+    state = %State{loader: loader}
+
+    {:ok, state: state, loader: loader}
+  end
 
   describe "analyse/2" do
-    alias Electric.Postgres.Proxy.QueryAnalysis
-
-    def analyse(sql, cxt) when is_binary(sql) do
-      analyse(simple(sql), cxt)
-    end
-
-    def analyse(msg, cxt) do
-      with {:ok, stmts} <- Parser.parse(msg) do
-        Enum.map(stmts, &Parser.analyse(&1, cxt.state))
-      end
-    end
-
-    setup do
-      # enable all the optional ddlx features
-      Electric.Features.process_override(
-        proxy_ddlx_grant: true,
-        proxy_ddlx_revoke: true,
-        proxy_ddlx_assign: true,
-        proxy_ddlx_unassign: true
-      )
-
-      migrations = [
-        {"0001",
-         [
-           "CREATE TABLE public.truths (id uuid PRIMARY KEY, value text)",
-           "CREATE INDEX truths_idx ON public.truths (value)"
-         ]}
-      ]
-
-      spec = MockSchemaLoader.backend_spec(migrations: migrations)
-
-      {:ok, loader} =
-        SchemaLoader.connect(spec, [])
-
-      state = %State{loader: loader}
-
-      {:ok, state: state, loader: loader}
-    end
-
     test "BEGIN; COMMIT", cxt do
       assert [
                %QueryAnalysis{
@@ -989,27 +975,85 @@ defmodule Electric.Postgres.Proxy.QueryAnalyserTest do
                  cxt
                )
     end
-
-    # TODO: how to handle invalid sql (that doesn't include electric syntax)?
-    #       ideally we'd want to forward to pg so it can give proper
-    #       error messages
-    # test "invalid sql is just forwarded on to pg", cxt do
-    #   assert [
-    #            %QueryAnalysis{
-    #              action: :invalid,
-    #              table: nil,
-    #              electrified?: false,
-    #              allowed?: true,
-    #              capture?: false,
-    #              valid?: false,
-    #              ast: nil,
-    #              sql: "UPHOLD MODERN VALUES ON public.truths; SELECT * FROM mental;"
-    #            }
-    #          ] =
-    #            analyse(
-    #              "UPHOLD MODERN VALUES ON public.truths; SELECT * FROM mental;",
-    #              cxt
-    #            )
-    # end
   end
+
+  describe "analyse(ALTER TYPE)" do
+    test "ADD VALUE" do
+    end
+
+    test "OWNER TO <regular enum>", cxt do
+      stmts = [
+        "ALTER TYPE foo OWNER TO CURRENT_ROLE"
+      ]
+
+      Enum.each(stmts, fn stmt ->
+        assert [
+                 %QueryAnalysis{
+                   action: :passthrough,
+                   allowed?: true,
+                   capture?: false,
+                   valid?: true,
+                   sql: ^stmt,
+                   source: %M.Query{query: ^stmt}
+                 }
+               ] = analyse(stmt, cxt)
+      end)
+    end
+
+    test "OWNER TO <electrified enum>", cxt do
+      stmts = [
+        "ALTER TYPE foo OWNER TO CURRENT_ROLE"
+      ]
+
+      Enum.each(stmts, fn stmt ->
+        assert [
+                 %QueryAnalysis{
+                   action: :passthrough,
+                   allowed?: true,
+                   capture?: false,
+                   valid?: true,
+                   sql: ^stmt,
+                   source: %M.Query{query: ^stmt}
+                 }
+               ] = analyse(stmt, cxt)
+      end)
+    end
+
+    "ALTER TYPE foo RENAME TO bar"
+  end
+
+  # TODO: how to handle invalid sql (that doesn't include electric syntax)?
+  #       ideally we'd want to forward to pg so it can give proper
+  #       error messages
+  # test "invalid sql is just forwarded on to pg", cxt do
+  #   assert [
+  #            %QueryAnalysis{
+  #              action: :invalid,
+  #              table: nil,
+  #              electrified?: false,
+  #              allowed?: true,
+  #              capture?: false,
+  #              valid?: false,
+  #              ast: nil,
+  #              sql: "UPHOLD MODERN VALUES ON public.truths; SELECT * FROM mental;"
+  #            }
+  #          ] =
+  #            analyse(
+  #              "UPHOLD MODERN VALUES ON public.truths; SELECT * FROM mental;",
+  #              cxt
+  #            )
+  # end
+
+  def analyse(sql, cxt) when is_binary(sql) do
+    analyse(simple(sql), cxt)
+  end
+
+  def analyse(msg, cxt) do
+    with {:ok, stmts} <- Parser.parse(msg) do
+      Enum.map(stmts, &Parser.analyse(&1, cxt.state))
+    end
+  end
+
+  def simple(sql), do: %M.Query{query: sql}
+  def extended(sql, attrs \\ []), do: struct(M.Parse, Keyword.put(attrs, :query, sql))
 end
