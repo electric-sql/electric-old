@@ -90,7 +90,7 @@ export async function generate(options: GeneratorOptions) {
     console.log('Service URL: ' + opts.config.SERVICE)
     console.log(
       'Proxy URL: ' +
-        stripPasswordFromUrl(buildProxyUrlForIntrospection(opts.config))
+      stripPasswordFromUrl(buildProxyUrlForIntrospection(opts.config))
     )
     // Generate the client
     if (opts.watch) {
@@ -317,8 +317,7 @@ function buildProxyUrlForIntrospection(config: Config) {
     user: 'prisma', // We use the "prisma" user to put the proxy into introspection mode
     password: config.PG_PROXY_PASSWORD,
     host: config.PG_PROXY_HOST,
-    port: parsePgProxyPort(config.PG_PROXY_PORT).port,
-    dbName: config.DATABASE_NAME,
+    port: parsePgProxyPort(config.PG_PROXY_PORT).port
   })
 }
 
@@ -564,8 +563,8 @@ async function fetchMigrations(
     options.protocol == 'http:'
       ? http
       : options.protocol == 'https:'
-      ? https
-      : undefined
+        ? https
+        : undefined
 
   if (requestModule === undefined)
     throw new TypeError(

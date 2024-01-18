@@ -85,14 +85,18 @@ export function buildDatabaseURL(opts: {
   password: string
   host: string
   port: number
-  dbName: string
+  dbName?: string
   ssl?: boolean
 }) {
   let url = 'postgresql://' + opts.user
   if (opts.password) {
     url += ':' + opts.password
   }
-  url += '@' + opts.host + ':' + opts.port + '/' + opts.dbName
+  url += '@' + opts.host + ':' + opts.port
+
+  if (opts.dbName) {
+    url += '/' + opts.dbName
+  }
 
   if (opts.ssl === false) {
     url += '?sslmode=disable'

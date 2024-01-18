@@ -51,8 +51,7 @@ export function start(options: StartSettings) {
     const exitOnDetached = options.exitOnDetached ?? true
 
     console.log(
-      `Starting ElectricSQL sync service${
-        options.withPostgres ? ' with PostgreSQL' : ''
+      `Starting ElectricSQL sync service${options.withPostgres ? ' with PostgreSQL' : ''
       }`
     )
 
@@ -67,15 +66,14 @@ export function start(options: StartSettings) {
       ...env,
       ...(options.withPostgres
         ? {
-            COMPOSE_PROFILES: 'with-postgres',
-            COMPOSE_ELECTRIC_SERVICE: 'electric-with-postgres',
-            DATABASE_URL: `postgresql://postgres:${
-              env?.DATABASE_PASSWORD ?? 'pg_password'
-            }@postgres:${env?.DATABASE_PORT ?? '5432'}/${
-              options.config.DATABASE_NAME
+          COMPOSE_PROFILES: 'with-postgres',
+          COMPOSE_ELECTRIC_SERVICE: 'electric-with-postgres',
+          // TODO(alco): why is this build in an ad-hoc fashion?
+          DATABASE_URL: `postgresql://postgres:${env?.DATABASE_PASSWORD ?? 'pg_password'
+            }@postgres:${env?.DATABASE_PORT ?? '5432'}/${options.config.DATABASE_NAME
             }`,
-            LOGICAL_PUBLISHER_HOST: 'electric',
-          }
+          LOGICAL_PUBLISHER_HOST: 'electric',
+        }
         : {}),
     }
     console.log('Docker compose config:', dockerConfig)

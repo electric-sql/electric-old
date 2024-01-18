@@ -39,12 +39,11 @@ export const configOptions = {
       ).port
       const user = 'postgres'
       const password = getConfigValue('PG_PROXY_PASSWORD', options)
-      const dbName = getConfigValue('DATABASE_NAME', options)
       const ssl = getConfigValue('DATABASE_REQUIRE_SSL', options)
-      return buildDatabaseURL({ host, port, user, password, dbName, ssl })
+      return buildDatabaseURL({ host, port, user, password, ssl })
     },
     constructedDefault:
-      'postgresql://postgres:{ELECTRIC_PG_PROXY_PASSWORD}@{ELECTRIC_PG_PROXY_HOST}:{ELECTRIC_PG_PROXY_PORT}/{ELECTRIC_DATABASE_NAME}',
+      'postgresql://postgres:{ELECTRIC_PG_PROXY_PASSWORD}@{ELECTRIC_PG_PROXY_HOST}:{ELECTRIC_PG_PROXY_PORT}',
   },
   CLIENT_PATH: {
     valueType: String,
@@ -136,7 +135,7 @@ export const configOptions = {
     doc: 'Name of the database to connect to.',
     valueType: String,
     defaultVal: () => defaultDbUrlPart('dbName', getAppName() ?? 'electric'),
-    groups: ['database', 'client', 'proxy'],
+    groups: ['database', 'client'],
   },
 
   // *** Electric options ***

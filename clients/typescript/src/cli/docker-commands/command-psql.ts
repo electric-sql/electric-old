@@ -20,6 +20,7 @@ export function makePsqlCommand() {
   return command
 }
 
+// Why does it only work when Postgres is run locally?
 export function psql(opts: GetConfigOptionsForGroup<'proxy' | 'electric'>) {
   const config = getConfig(opts)
   // As we are connecting to the proxy from within the docker network, we have to
@@ -28,8 +29,7 @@ export function psql(opts: GetConfigOptionsForGroup<'proxy' | 'electric'>) {
     user: config.DATABASE_USER,
     password: config.PG_PROXY_PASSWORD,
     host: 'electric',
-    port: parsePgProxyPort(config.PG_PROXY_PORT).port,
-    dbName: config.DATABASE_NAME,
+    port: parsePgProxyPort(config.PG_PROXY_PORT).port
   })
   dockerCompose(
     'exec',
