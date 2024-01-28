@@ -1,19 +1,24 @@
-/* This is an example of an SQL DDL migration. It creates an `items` table and
- * then calls an `electric.electrify` procedure to expose the table to the
- * ElectricSQL replication machinery.
- *
- * Note that these statements are applied directly to the *Postgres* database.
- * Electric then handles keeping the local SQLite database schema in sync with
- * the electrified subset of your Postgres database schema.
- *
- * See https://electric-sql.com/docs/usage/data-modelling for more information.
- */
-
--- Create a simple items table.
-CREATE TABLE IF NOT EXISTS items (
-  value TEXT PRIMARY KEY NOT NULL
+CREATE TYPE tetromino AS ENUM (
+  'straight',
+  'square',
+  'skew',
+  'T_shaped',
+  'L_shaped'
 );
 
--- ⚡
--- Electrify the items table
-ALTER TABLE items ENABLE ELECTRIC;
+CREATE TYPE colour AS ENUM (
+  'red',
+  'yellow',
+  'purple',
+  'cyan',
+  'green'
+);
+
+CREATE TABLE tetrominoes (
+  id uuid PRIMARY KEY,
+  shape tetromino NOT NULL,
+  colour colour NOT NULL,
+  angle integer
+);
+
+ALTER TABLE tetrominoes ENABLE ELECTRIC;
