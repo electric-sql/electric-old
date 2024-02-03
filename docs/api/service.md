@@ -201,23 +201,16 @@ The `userspec` section of this connection string specifies the database user tha
 
 ### Permissions for logical replication mode
 
-In [logical replication mode](#logical-replication-mode), the database user must have the [`LOGIN` and `SUPERUSER` role attributes](https://www.postgresql.org/docs/16/role-attributes.html#ROLE-ATTRIBUTES). You can create a user with these permissions using, e.g.:
-
-```sql
-CREATE ROLE electric
-  WITH LOGIN
-       PASSWORD '...'
-       SUPERUSER;
-```
+In [logical replication mode](#logical-replication-mode), the database user must have the [`LOGIN` and either `SUPERUSER` or `REPLICATION` role attributes](https://www.postgresql.org/docs/16/role-attributes.html#ROLE-ATTRIBUTES). Managed databases from cloud providers such as AWS and Google Cloud tend to have a superuser default admin role. Smaller providers of managed Postgres often won't give you a superuser role but will make sure the default admin role has the `REPLICATION` attribute.
 
 ### Permissions for direct writes mode
 
-In [direct writes mode](#direct-writes-mode), the database user must have `LOGIN`, `REPLICATION` and then either `ALL` on the database and public schema or at a minimum:
-
+In [direct writes mode](#direct-writes-mode), the database user must have the `LOGIN` and `REPLICATION` role attributes and a `CREATE ON DATABASE <your db>` privilege.
+<!-- 
 - `CONNECT`, `CREATE` and `TEMPORARY` on the database
 - `CREATE`, `EXECUTE on ALL` and `USAGE` on the `public` schema
 
-Plus `ALTER DEFAULT PRIVILEGES` to grant the same permissions on any new tables in the public schema. For example, to create a user with the necessary permissions:
+Plus `ALTER DEFAULT PRIVILEGES` to grant the same permissions on any new tables in the public schema. For example, to create a user with the necessary permissions: -->
 
 ```sql
 CREATE ROLE electric
@@ -240,6 +233,10 @@ ALTER DEFAULT PRIVILEGES
     ON TABLES
     TO electric;
 ```
+
+### Sharing table access between two database roles
+
+If you choose to create a separate role Electric and use another role to run migrations outside of Electric, ...
 
 ## Migrations proxy
 
