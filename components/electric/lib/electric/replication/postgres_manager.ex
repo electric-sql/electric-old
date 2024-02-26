@@ -18,7 +18,8 @@ defmodule Electric.Replication.PostgresConnectorMng do
       :write_to_pg_mode,
       :status,
       :backoff,
-      :pg_connector_sup_monitor
+      :pg_connector_sup_monitor,
+      :conn
     ]
 
     @type status :: :initialization | :establishing_repl_conn | :subscribing | :ready
@@ -40,7 +41,8 @@ defmodule Electric.Replication.PostgresConnectorMng do
             write_to_pg_mode: Electric.write_to_pg_mode(),
             status: status,
             backoff: term,
-            pg_connector_sup_monitor: reference | nil
+            pg_connector_sup_monitor: reference | nil,
+            conn: Client.connection() | nil
           }
   end
 
@@ -94,7 +96,7 @@ defmodule Electric.Replication.PostgresConnectorMng do
       |> update_connector_config(&preflight_connector_config/1)
       |> reset_state()
 
-    {:ok, state, {:continue, :init}}
+    {:ok, state, {:continue, :open_persistent_conn}}
   end
 
   defp ets_table_name(origin) do
@@ -129,16 +131,49 @@ defmodule Electric.Replication.PostgresConnectorMng do
     }
   end
 
+  defp connect(%State{conn: conn} = state) do
+    if conn, do: Client.close(conn)
+
+    state = %{state | conn: nil}
+
+    case Client.connect(state.conn_opts) do
+      {:ok, conn} -> {:ok, %State{state | conn: conn}}
+      other -> {other, state}
+    end
+  end
+
   @impl GenServer
-  def handle_continue(:init, state) do
+  def handle_continue(:open_persistent_conn, state) do
+    case connect(state) do
+      {:ok, state} ->
+        {:noreply, state, {:continue, :init_postgres}}
+
+      {{:error, {:ssl_negotiation_failed, _}}, state} when state.conn_opts.ssl != :required ->
+        state = fallback_to_nossl(state)
+        {:noreply, state, {:continue, :open_persistent_conn}}
+
+      {{:error, reason} = error, state} ->
+        Logger.error("Failed to open a Postgres connection: #{inspect(error)}.")
+
+        Electric.Errors.print_error(
+          :conn,
+          """
+          Failed to open a Postgres conection:
+            #{inspect(error, pretty: true, width: 120)}
+
+          """,
+          extra_error_description(reason)
+        )
+
+        {:noreply, schedule_retry(:open_persistent_conn, state)}
+    end
+  end
+
+  def handle_continue(:init_postgres, state) do
     case initialize_postgres(state) do
       :ok ->
         state = set_status(state, :establishing_repl_conn)
-        {:noreply, state, {:continue, :establish_repl_conn}}
-
-      {:error, {:ssl_negotiation_failed, _}} when state.conn_opts.ssl != :required ->
-        state = fallback_to_nossl(state)
-        {:noreply, state, {:continue, :init}}
+        {:noreply, state, {:continue, :open_replication_conn}}
 
       {:error, reason} = error ->
         Logger.error("Initialization of Postgres state failed with reason: #{inspect(error)}.")
@@ -153,11 +188,11 @@ defmodule Electric.Replication.PostgresConnectorMng do
           extra_error_description(reason)
         )
 
-        {:noreply, schedule_retry(:init, state)}
+        {:noreply, schedule_retry(:open_persistent_conn, state)}
     end
   end
 
-  def handle_continue(:establish_repl_conn, %State{} = state) do
+  def handle_continue(:open_replication_conn, %State{} = state) do
     case PostgresConnector.start_children(state.connector_config) do
       {:ok, sup_pid} ->
         Logger.info("Successfully initialized Postgres connector #{inspect(state.origin)}.")
@@ -167,7 +202,7 @@ defmodule Electric.Replication.PostgresConnectorMng do
         {:noreply, state, {:continue, :subscribe}}
 
       :error ->
-        {:noreply, schedule_retry(:establish_repl_conn, state)}
+        {:noreply, schedule_retry(:open_replication_conn, state)}
     end
   end
 
@@ -198,7 +233,7 @@ defmodule Electric.Replication.PostgresConnectorMng do
       )
     end
 
-    {:noreply, schedule_retry(:init, reset_state(state))}
+    {:noreply, schedule_retry(:open_persistent_conn, reset_state(state))}
   end
 
   def handle_info(msg, %State{} = state) do
@@ -220,11 +255,8 @@ defmodule Electric.Replication.PostgresConnectorMng do
     end
   end
 
-  defp start_subscription(%State{origin: origin, conn_opts: conn_opts, repl_opts: repl_opts}) do
-    Client.with_conn(conn_opts, fn conn ->
-      Client.start_subscription(conn, repl_opts.subscription)
-    end)
-    |> case do
+  defp start_subscription(%State{origin: origin, conn: conn, repl_opts: repl_opts}) do
+    case Client.start_subscription(conn, repl_opts.subscription) do
       :ok ->
         Logger.notice("subscription started for #{origin}")
         :ok
@@ -235,11 +267,8 @@ defmodule Electric.Replication.PostgresConnectorMng do
     end
   end
 
-  defp stop_subscription(%State{origin: origin, conn_opts: conn_opts, repl_opts: repl_opts}) do
-    Client.with_conn(conn_opts, fn conn ->
-      Client.stop_subscription(conn, repl_opts.subscription)
-    end)
-    |> case do
+  defp stop_subscription(%State{origin: origin, conn: conn, repl_opts: repl_opts}) do
+    case Client.stop_subscription(conn, repl_opts.subscription) do
       :ok ->
         Logger.notice("subscription stopped for #{origin}")
         :ok
@@ -250,25 +279,23 @@ defmodule Electric.Replication.PostgresConnectorMng do
     end
   end
 
-  def initialize_postgres(%State{origin: origin, conn_opts: conn_opts} = state) do
+  def initialize_postgres(%State{origin: origin, conn_opts: conn_opts, conn: conn} = state) do
     Logger.debug(
       "Attempting to initialize #{origin}: #{conn_opts.username}@#{conn_opts.host}:#{conn_opts.port}"
     )
 
-    Client.with_conn(conn_opts, fn conn ->
-      with {:ok, versions} <- Extension.migrate(conn),
-           {:ok, published_tables} <- Extension.published_tables(conn),
-           {:ok, _name} <-
-             Client.create_publication(conn, Extension.publication_name(), published_tables),
-           :ok <- maybe_create_subscription(conn, state.write_to_pg_mode, state.repl_opts),
-           :ok <- OidDatabase.update_oids(conn) do
-        Logger.info(
-          "Successfully initialized origin #{origin} at extension version #{List.last(versions)}"
-        )
+    with {:ok, versions} <- Extension.migrate(conn),
+         {:ok, published_tables} <- Extension.published_tables(conn),
+         {:ok, _name} <-
+           Client.create_publication(conn, Extension.publication_name(), published_tables),
+         :ok <- maybe_create_subscription(conn, state.write_to_pg_mode, state.repl_opts),
+         :ok <- OidDatabase.update_oids(conn) do
+      Logger.info(
+        "Successfully initialized origin #{origin} at extension version #{List.last(versions)}"
+      )
 
-        :ok
-      end
-    end)
+      :ok
+    end
   end
 
   defp maybe_create_subscription(conn, :logical_replication, repl_opts) do
