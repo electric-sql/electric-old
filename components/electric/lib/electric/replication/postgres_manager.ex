@@ -367,7 +367,7 @@ defmodule Electric.Replication.PostgresConnectorMng do
 
         [
           verify: :verify_peer,
-          cacerts: cacerts,
+          cacerts: :available,
           customize_hostname_check: [
             # Use a custom match function to support wildcard CN in server certificates.
             # For example, CN = *.us-east-2.aws.neon.tech

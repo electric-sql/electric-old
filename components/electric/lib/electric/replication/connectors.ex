@@ -179,8 +179,18 @@ defmodule Electric.Replication.Connectors do
   end
 
   # This is needed to please Dialyzer.
-  @spec pop_extraneous_conn_opts(connection_opts()) :: {map, :epgsql.connect_opts_map()}
-  def pop_extraneous_conn_opts(conn_opts) do
-    Map.split(conn_opts, [:ipv6, :ip_addr])
+  @spec prepare_opts_for_connection(connection_opts()) :: {map, :epgsql.connect_opts_map()}
+  def prepare_opts_for_connection(conn_opts) do
+    conn_opts
+    |> maybe_put_cacerts()
+    |> Map.split([:ipv6, :ip_addr])
+  end
+
+  defp maybe_put_cacerts(opts) do
+    if opts.ssl && get_in(opts, [:ssl_opts, :cacerts]) == :available do
+      put_in(opts, [:ssl_opts, :cacerts], :public_key.cacerts_get())
+    else
+      opts
+    end
   end
 end
