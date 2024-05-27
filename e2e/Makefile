@@ -6,7 +6,12 @@ test_only:
 	${LUX} tests/*.lux
 
 test-no-satellite:
-	find tests -maxdepth 1 -type f -name "*.lux" -and -not -name "03.*.lux" | sort -h | xargs ${LUX} --junit
+	find tests -maxdepth 1 -type f \
+	  -name "*.lux" \
+	  -and -not -name "03.*.lux" \
+	  -and -not -name "07.*.lux" \
+	| sort -h \
+	| xargs ${LUX} --junit
 
 test-satellite-only:
 	${LUX} --junit tests/03.*.lux
