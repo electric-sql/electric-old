@@ -16,6 +16,9 @@ test-no-satellite:
 test-satellite-only:
 	${LUX} --junit tests/03.*.lux
 
+test-perftest:
+	LUX="${LUX}" ./perftest_initial_sync.sh
+
 test: deps pull test_only
 
 deps: lux
