@@ -89,6 +89,9 @@ stop_dev_env:
 start_otel_collector:
 	docker compose -f ${DOCKER_COMPOSE_FILE} up otel-collector
 
+start_otel_collector:
+	docker compose -f ${DOCKER_COMPOSE_FILE} up otel-collector
+
 start_sysbench:
 	docker compose -f ${DOCKER_COMPOSE_FILE} run \
 		--rm --entrypoint=/bin/bash \
