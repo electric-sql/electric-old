@@ -26,6 +26,7 @@ jobs:
   e2e_tests:
     name: E2E tests
     runs-on: electric-e2e-8-32
+    #if: ${{ ! contains(github.event.pull_request.labels.*.name, 'perftest') }}
     strategy:
       matrix:
         write_to_pg_mode: [logical_replication, direct_writes]
