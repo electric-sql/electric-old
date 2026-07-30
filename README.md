@@ -31,6 +31,7 @@ Super excited to share and see what you think of the new thinking, direction, AP
 <p align="center">
   <a href="https://github.com/electric-sql/electric/stargazers/"><img src="https://img.shields.io/github/stars/electric-sql/electric?style=social&label=Star&maxAge=2592000" /></a>
   <a href="https://github.com/electric-sql/electric/actions"><img src="https://github.com/electric-sql/electric/workflows/CI/badge.svg" alt="CI"></a>
+<a href="https://app.fossa.com/projects/git%2Bgithub.com%2Felectric-sql%2Felectric-old?ref=badge_shield" alt="FOSSA Status"><img src="https://app.fossa.com/api/projects/git%2Bgithub.com%2Felectric-sql%2Felectric-old.svg?type=shield"/></a>
   <a href="https://github.com/electric-sql/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-Apache_2.0-green" alt="License - Apache 2.0"></a>
   <a href="https://electric-sql.com/docs/reference/roadmap"><img src="https://img.shields.io/badge/status-alpha-orange" alt="Status - Alpha"></a>
   <a href="https://discord.electric-sql.com"><img src="https://img.shields.io/discord/933657521581858818?color=5969EA&label=discord" alt="Chat - Discord"></a>
@@ -46,6 +47,9 @@ Super excited to share and see what you think of the new thinking, direction, AP
     </tr>
   </table>
 </p>
+
+
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Felectric-sql%2Felectric-old.svg?type=large)](https://app.fossa.com/projects/git%2Bgithub.com%2Felectric-sql%2Felectric-old?ref=badge_large)
 
 # ElectricSQL
 
